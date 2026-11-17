@@ -1,0 +1,90 @@
+# OCI Site-to-Site VPN: two IKEv2 route-based XFRM tunnels via swanctl.
+# XFRM if_id_in/out must match IDs in xfrm.sh, delivered through .env.
+# Generated at container startup; do not put credentials in this source file.
+# The remote IKE IDs default to the OCI tunnel public IPv4 addresses, matching
+# the original ipsec.conf setup. Confirm these IDs if OCI is customized.
+connections {
+  oci-tun1 {
+    version = 2
+    local_addrs = %any
+    remote_addrs = ${VPN_OCI_TUN_1_IP}
+    local {
+      auth = psk
+      id = @${VPN_CPE_IDENTIFIER}
+    }
+    remote {
+      auth = psk
+      id = ${VPN_OCI_TUN_1_IP}
+    }
+    proposals = aes256-sha384-ecp384
+    rekey_time = 8h
+    reauth_time = 0s
+    keyingtries = 0
+    mobike = no
+    encap = yes
+    dpd_delay = 30s
+    children {
+      oci-tun1 {
+        mode = tunnel
+        local_ts = 0.0.0.0/0
+        remote_ts = 0.0.0.0/0
+        esp_proposals = aes256gcm16-modp1536
+        rekey_time = 1h
+        if_id_in = ${VPN_XFRM_IF_ID_1}
+        if_id_out = ${VPN_XFRM_IF_ID_1}
+        start_action = start
+        dpd_action = restart
+        close_action = start
+      }
+    }
+  }
+  oci-tun2 {
+    version = 2
+    local_addrs = %any
+    remote_addrs = ${VPN_OCI_TUN_2_IP}
+    local {
+      auth = psk
+      id = @${VPN_CPE_IDENTIFIER}
+    }
+    remote {
+      auth = psk
+      id = ${VPN_OCI_TUN_2_IP}
+    }
+    proposals = aes256-sha384-ecp384
+    rekey_time = 8h
+    reauth_time = 0s
+    keyingtries = 0
+    mobike = no
+    encap = yes
+    dpd_delay = 30s
+    children {
+      oci-tun2 {
+        mode = tunnel
+        local_ts = 0.0.0.0/0
+        remote_ts = 0.0.0.0/0
+        esp_proposals = aes256gcm16-modp1536
+        rekey_time = 1h
+        if_id_in = ${VPN_XFRM_IF_ID_2}
+        if_id_out = ${VPN_XFRM_IF_ID_2}
+        start_action = start
+        dpd_action = restart
+        close_action = start
+      }
+    }
+  }
+}
+
+# PSKs are base64-encoded at runtime. The 0s prefix tells swanctl to decode
+# these back to the original bytes rather than treating them as literal text.
+secrets {
+  ike-tun1 {
+    id-1 = @${VPN_CPE_IDENTIFIER}
+    id-2 = ${VPN_OCI_TUN_1_IP}
+    secret = 0s${VPN_OCI_TUN_1_PSK_B64}
+  }
+  ike-tun2 {
+    id-1 = @${VPN_CPE_IDENTIFIER}
+    id-2 = ${VPN_OCI_TUN_2_IP}
+    secret = 0s${VPN_OCI_TUN_2_PSK_B64}
+  }
+}

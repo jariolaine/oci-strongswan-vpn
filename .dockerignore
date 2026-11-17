@@ -1,0 +1,18 @@
+.env
+.env.*
+.git
+terraform/
+scripts/
+**/*.tfstate*
+**/*.tfvars
+**/.terraform/
+
+# Not needed for the runtime image
+README.md
+*.code-workspace
+
+# Host-only tests, not needed in runtime image
+tests/
+
+__pycache__/
+*.pyc

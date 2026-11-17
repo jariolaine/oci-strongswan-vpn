@@ -1,0 +1,98 @@
+# BIRD 2 IPv4 configuration for dual OCI VPN BGP peering
+#debug protocols all;
+
+# Router IP
+define ROUTER_IP = ${VPN_ROUTER_IP};
+# Local BGP ASN
+define ROUTER_ASN = ${VPN_ROUTER_ASN};
+# OCI BGP ASN
+define OCI_ASN = ${VPN_OCI_ASN};
+# Local network
+define ROUTER_PREFIXES = [ ${VPN_ROUTER_PREFIXES} ];
+# Optional OCI BGP import exclusions are inserted in oci_drg_in below.
+
+# OCI IP inside tunnel
+define OCI_IP_INSIDE_TUNNEL_1 = ${VPN_OCI_TUN_1_PEER_IP};
+define LOCAL_IP_INSIDE_TUNNEL_1 = ${VPN_OCI_TUN_1_LOCAL_IP};
+define OCI_IP_INSIDE_TUNNEL_2 = ${VPN_OCI_TUN_2_PEER_IP};
+define LOCAL_IP_INSIDE_TUNNEL_2 = ${VPN_OCI_TUN_2_LOCAL_IP};
+
+router id ROUTER_IP;
+
+# Watch interface up/down events
+protocol device {
+  scan time 60;
+}
+
+# Import interface routes (Connected)
+protocol direct {
+  ipv4;
+  interface "*";
+}
+
+# Sync routes to kernel
+protocol kernel {
+
+  learn;
+  merge paths on;
+  ipv4 {
+    import all;
+    export filter {
+      # Source address for routes BIRD installs in the host kernel.
+      krt_prefsrc = ROUTER_IP;
+      accept;
+    };
+  };
+
+}
+
+# Filter received prefixes
+filter oci_drg_in {
+  if source != RTS_BGP then reject;
+  # Deny default routes unless explicitly opted in, avoiding IKE black holes.
+  ${VPN_OCI_DEFAULT_ROUTE_RULE}
+  ${VPN_OCI_REJECT_RULE}
+  accept;
+}
+
+# Filter advertised prefixes
+filter oci_drg_out {
+
+  if (net ~ ROUTER_PREFIXES) then
+    accept;
+  else
+    reject;
+
+}
+
+template bgp oci_drg {
+
+  local as ROUTER_ASN;
+
+  keepalive time 60;
+  hold time 180;
+
+# Graceful restart awareness for BGP peer maintenance
+  graceful restart aware;
+
+  ipv4 {
+    import filter oci_drg_in;
+    import limit 100 action warn;
+
+    export filter oci_drg_out;
+    export limit 100 action warn;
+  };
+
+}
+
+protocol bgp oci_tun1 from oci_drg {
+  neighbor OCI_IP_INSIDE_TUNNEL_1 as OCI_ASN;
+  source address LOCAL_IP_INSIDE_TUNNEL_1;
+  interface "xfrm-oci1";
+}
+
+protocol bgp oci_tun2 from oci_drg {
+  neighbor OCI_IP_INSIDE_TUNNEL_2 as OCI_ASN;
+  source address LOCAL_IP_INSIDE_TUNNEL_2;
+  interface "xfrm-oci2";
+}

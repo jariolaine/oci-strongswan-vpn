@@ -1,0 +1,38 @@
+# Copy to terraform.tfvars (gitignored), then replace the placeholders.
+# Terraform loads terraform.tfvars natively from this directory.
+# Never put PSKs here if you prefer to supply them through TF_VAR_* exports.
+region                       = "REPLACE_WITH_OCI_REGION"
+tenancy_ocid                 = "REPLACE_WITH_TENANCY_OCID"
+compartment_ocid             = "REPLACE_WITH_COMPARTMENT_OCID"
+drg_ocid                     = "REPLACE_WITH_DRG_OCID"
+cpe_ip                       = "REPLACE_WITH_CPE_PUBLIC_IPV4"
+cpe_identifier               = "REPLACE_WITH_CPE_IKE_ID"
+cpe_display_name             = "vpn-cpe"
+ipsec_display_name           = "vpn-ipsec"
+tun_1_display_name           = "vpn-tunnel-1"
+tun_2_display_name           = "vpn-tunnel-2"
+customer_bgp_asn             = "REPLACE_WITH_CUSTOMER_BGP_ASN"
+tun_1_customer_interface_ip  = "REPLACE_WITH_TUNNEL_1_LOCAL_CIDR"
+tun_1_oracle_interface_ip    = "REPLACE_WITH_TUNNEL_1_OCI_CIDR"
+tun_2_customer_interface_ip  = "REPLACE_WITH_TUNNEL_2_LOCAL_CIDR"
+tun_2_oracle_interface_ip    = "REPLACE_WITH_TUNNEL_2_OCI_CIDR"
+router_prefix                = "REPLACE_WITH_ADVERTISED_SOURCE_CIDR"
+
+# Optional Docker runtime settings (defaults shown in variables.tf):
+# oci_bgp_asn              = "31898"
+# oci_reject_prefixes      = ""
+# oci_accept_default_route = false  # Keep the host default route on its underlay
+# router_ip                = ""
+# xfrm_if_id_1             = 1001
+# xfrm_if_id_2             = 1002
+# xfrm_mtu                 = 1360
+# snat_enabled             = true
+# snat_networks            = "auto"
+# snat_extra_networks      = ""
+# snat_source_ip           = ""
+# snat_ports               = "1522"
+# snat_refresh_seconds     = 15
+
+# Secrets are read directly from the shell, not from the generated .env:
+# export TF_VAR_tun_1_shared_secret='your-new-psk-1'
+# export TF_VAR_tun_2_shared_secret='your-new-psk-2'

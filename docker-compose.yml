@@ -1,0 +1,53 @@
+---
+name: vpn
+
+services:
+
+  strongswan:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "swanctl --stats >/dev/null 2>&1 && birdc show status >/dev/null 2>&1 && /usr/local/bin/xfrm.sh check >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"
+    cap_add:
+      - NET_ADMIN
+    environment:
+      VPN_OCI_TUN_1_IP: ${VPN_OCI_TUN_1_IP:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_2_IP: ${VPN_OCI_TUN_2_IP:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_1_PSK: ${VPN_OCI_TUN_1_PSK:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_2_PSK: ${VPN_OCI_TUN_2_PSK:?Run terraform apply to generate .env}
+      VPN_CPE_IDENTIFIER: ${VPN_CPE_IDENTIFIER:?Run terraform apply to generate .env}
+      VPN_ROUTER_ASN: ${VPN_ROUTER_ASN:?Run terraform apply to generate .env}
+      VPN_ROUTER_PREFIXES: ${VPN_ROUTER_PREFIXES:?Run terraform apply to generate .env}
+      VPN_OCI_ASN: ${VPN_OCI_ASN:-31898}
+      VPN_OCI_REJECT_PREFIXES: ${VPN_OCI_REJECT_PREFIXES:-}
+      VPN_OCI_ACCEPT_DEFAULT_ROUTE: ${VPN_OCI_ACCEPT_DEFAULT_ROUTE:-false}
+      VPN_OCI_TUN_1_LOCAL_CIDR: ${VPN_OCI_TUN_1_LOCAL_CIDR:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_1_PEER_CIDR: ${VPN_OCI_TUN_1_PEER_CIDR:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_2_LOCAL_CIDR: ${VPN_OCI_TUN_2_LOCAL_CIDR:?Run terraform apply to generate .env}
+      VPN_OCI_TUN_2_PEER_CIDR: ${VPN_OCI_TUN_2_PEER_CIDR:?Run terraform apply to generate .env}
+      VPN_ROUTER_IP: ${VPN_ROUTER_IP:-}
+      VPN_XFRM_IF_ID_1: ${VPN_XFRM_IF_ID_1:-1001}
+      VPN_XFRM_IF_ID_2: ${VPN_XFRM_IF_ID_2:-1002}
+      VPN_XFRM_MTU: ${VPN_XFRM_MTU:-1360}
+      # Dynamic SNAT: discover all standard bridge subnet CIDRs.
+      VPN_SNAT_ENABLED: ${VPN_SNAT_ENABLED:-true}
+      VPN_SNAT_NETWORKS: ${VPN_SNAT_NETWORKS:-auto}
+      VPN_SNAT_EXTRA_NETWORKS: ${VPN_SNAT_EXTRA_NETWORKS:-}
+      VPN_SNAT_SOURCE_IP: ${VPN_SNAT_SOURCE_IP:-}
+      VPN_SNAT_PORTS: ${VPN_SNAT_PORTS:-1522}
+      VPN_SNAT_REFRESH_SECONDS: ${VPN_SNAT_REFRESH_SECONDS:-15}
+    network_mode: host
