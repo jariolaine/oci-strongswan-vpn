@@ -120,6 +120,61 @@ that it belongs to this VPN; never automatically remove unrelated host links.
 
 ### Network design
 
+The topology below shows the full data and control paths. Terraform creates the
+OCI IPSec connection and its two Oracle tunnel endpoints; OCI's `CPE` object
+represents this host's public endpoint. The container shares the **host**
+network namespace (`network_mode: host`), so the XFRM interfaces, routing
+decisions and SNAT rules all act directly on the host stack.
+
+```mermaid
+flowchart LR
+    subgraph HOST["VPN host (Linux)"]
+        direction TB
+        DOCKER["Docker bridge networks<br/>(docker0 / br-* workloads)"]
+        X1["xfrm-oci1<br/>if_id 1001"]
+        X2["xfrm-oci2<br/>if_id 1002"]
+        ETH["Underlay NIC<br/>default route stays here"]
+        subgraph CTN["strongswan container (network_mode: host)"]
+            direction TB
+            CHARON["charon — IKEv2 daemon<br/>(swanctl over VICI)"]
+            BIRD["BIRD 2 — BGP speaker"]
+            SNATC["snat.sh — SNAT rule watcher<br/>(TCP dst ports, -o xfrm-oci+)"]
+        end
+    end
+
+    INTERNET(["Public Internet"])
+
+    subgraph OCI["OCI region"]
+        direction TB
+        T1["IPSec tunnel 1<br/>Oracle public endpoint"]
+        T2["IPSec tunnel 2<br/>Oracle public endpoint"]
+        DRG["DRG + DRG route tables"]
+        REMOTE["VCN workloads<br/>(remote prefixes)"]
+    end
+
+    DOCKER -->|"forwarded traffic<br/>(SNAT'd to host src IP)"| X1
+    DOCKER -->|"forwarded traffic"| X2
+    BIRD -.->|"BGP TCP 179<br/>over inside /30"| X1
+    BIRD -.->|"BGP TCP 179<br/>over inside /30"| X2
+    CHARON -.->|"IKEv2/PSK UDP 500"| ETH
+    X1 <-->|"XFRM state/if_id<br/>encrypt ⇄ decrypt"| ETH
+    X2 <-->|"ESP-in-UDP 4500"| ETH
+    ETH <--> INTERNET
+    INTERNET <--> T1
+    INTERNET <--> T2
+    T1 -->|"decrypted ⇄ encapsulated"| DRG
+    T2 -->|"decrypted ⇄ encapsulated"| DRG
+    DRG <--> REMOTE
+```
+
+Reading the data path left to right: Docker workload traffic is routed to
+`xfrm-oci1`/`xfrm-oci2`, encrypted by the XFRM state bound through the
+matching `if_id`, sent over the host underlay to the Oracle tunnel endpoints,
+then delivered to the DRG and the remote VCN; return traffic reverses this
+path. BGP sessions run over each tunnel's inside `/30` link, and the underlay
+route toward the public tunnel endpoints is never replaced by a route learned
+through the VPN.
+
 - `charon` runs without systemd; `swanctl` loads credentials before initiating
   the two IKEv2 connections.
 - Each CHILD_SA uses `if_id_in = if_id_out` to bind IPsec policy to one Linux

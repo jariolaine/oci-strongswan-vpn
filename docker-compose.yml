@@ -10,7 +10,7 @@ services:
     security_opt:
       - no-new-privileges:true
     init: true
-    restart: unless-stopped
+    # restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "swanctl --stats >/dev/null 2>&1 && birdc show status >/dev/null 2>&1 && /usr/local/bin/xfrm.sh check >/dev/null 2>&1"]
       interval: 30s
